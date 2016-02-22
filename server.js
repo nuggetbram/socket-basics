@@ -7,9 +7,9 @@ var io = require('socket.io')(http);
 app.use(express.static(__dirname + '/public'));
 
 io.on('connection', function () {
-	console.log('User connected via socket.io!');
+	console.log('User connected');
 });
 
 http.listen(PORT, function () {
-	console.log('Server started!');
+	console.log('Server listening on port ' + PORT);
 });
