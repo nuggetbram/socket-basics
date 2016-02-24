@@ -10,23 +10,44 @@ app.use(express.static(__dirname + '/public'));
 
 var clientInfo = {};
 
-io.on('connection', function (socket) {
+function sendCurrentUsers (socket) {
+	var info = clientInfo[socket.id];
+	var users = [];
+
+	if (typeof info === 'undefined') {
+		return;
+	}
+
+	Object.keys(clientInfo).forEach(function (socketId) {
+		var userInfo = clientInfo[socketId];
+
+		if (info.room === userInfo.room) {
+			users.push(userInfo.name);
+		}
+	});
+
+	socket.emit('message', {
+		name: 'System',
+		text: 'Current users: ' + users.join(', '),
+		timestamp: moment().valueOf()
+	});
+}
+
+io.on('connection', function(socket) {
 	console.log('User connected');
     
     socket.on('disconnect', function() {
        var userData = clientInfo[socket.id];
         
         if(typeof userData !== 'undefined') {
-           socket.leave(userData.room);
-           io.to(userData.room).emit('message', {
-               name: 'System',
-               text: userData.name + ' has left the chat.',
-               timestamp: moment.valueOf()
-           });
-            
-            delete(userData);
-           
-       } 
+			socket.leave(userData.room);
+			io.to(userData.room).emit('message', {
+				name: 'System',
+				text: userData.name + ' has left!',
+				timestamp: moment().valueOf()
+			});
+			delete clientInfo[socket.id];
+		} 
     });
     
     socket.on('joinRoom', function(req) {
@@ -45,9 +66,15 @@ io.on('connection', function (socket) {
 
         console.log('Message Received: ' + message.text + ' at: ' + moment.utc(message.timestamp).format('h:mm:ss A'));
           
-        message.timestamp = moment().valueOf();
+        if(message.text === '@currentusers') {
+            sendCurrentUsers(socket);
+        } else {
+            message.timestamp = moment().valueOf();
         
-        io.to(clientInfo[socket.id].room).emit('message', message);
+            io.to(clientInfo[socket.id].room).emit('message', message);
+        }
+        
+        
     });
     
     socket.emit('message', {
